@@ -1,57 +1,70 @@
 {-# OPTIONS_GHC -Wall #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Main where
 
-import           Control.Lens         (makeLenses, (.~), (^.))
+import           Control.Lens         (makeLenses, (^.))
+import           Data.List            (intercalate)
 import           Data.List.Split      (chunksOf)
 
-import           Data.ByteString.Lazy (ByteString)
-import qualified Data.ByteString.Lazy as LBS (writeFile, toStrict)
-import           Data.Text            (unpack)
-import           Data.Text.Encoding   (decodeUtf8)
+import qualified Data.ByteString      as BS (ByteString, writeFile)
+import qualified Data.ByteString.Lazy as LBS (toStrict)
+import qualified Data.Text            as T
+import qualified Data.Text.Encoding   as E (decodeUtf8, encodeUtf8)
 import qualified Network.Wreq         as Wreq (get, responseBody)
-import           Text.HTML.TagSoup    (Tag, fromAttrib, isTagCloseName,
-                                       parseTags, renderTags, (~/=))
+import           Text.HTML.TagSoup    (Tag, fromAttrib, fromTagText, parseTags,
+                                       renderTags, (~/=))
+
+toByteString :: String -> BS.ByteString
+toByteString = E.encodeUtf8 . T.pack 
+
+type City = String
+type State = String
+type Country = String
+
+data Location = Location Country State City
+              deriving Show
 
 data Event = Event
-           { name     :: String
-           , location :: String
-           , date     :: String
-           , link     :: String
+           { _name     :: String
+           , _location :: Location
+           , _date     :: String
+           , _link     :: String
            }
            deriving Show
 
---makeLenses ''Event
+makeLenses ''Event
 
 url :: String
 url = "http://us.battle.net/hearthstone/en/fireside-gatherings?country=RU#fireside-gatherings"
 
-getHtml :: IO ByteString
+getHtml :: IO String
 getHtml = do
   response <- Wreq.get url
-  return (response ^. Wreq.responseBody)
+  return $ (T.unpack . E.decodeUtf8 . LBS.toStrict) (response ^. Wreq.responseBody)
 
-findEventsTable :: ByteString -> [Tag ByteString]
-findEventsTable = takeWhile (~/= "</div>") . drop 1 . dropWhile (~/= "</div>") . dropWhile (~/= "<div class=meetups-event-table>") . parseTags 
+findEventsTable :: String -> [Tag String]
+findEventsTable = takeWhile (~/= "</div>") . drop 2 . dropWhile (~/= "</div>") . dropWhile (~/= "<div class=meetups-event-table>") . parseTags
 
-splitEvents :: [Tag ByteString] -> [[Tag ByteString]]
+splitEvents :: [Tag String] -> [[Tag String]]
 splitEvents = chunksOf 32
 
-parseEvent :: [Tag ByteString] -> Event
+parseEvent :: [Tag String] -> Event
 parseEvent tags = Event name location date link
-  where link = "http://us.battle.net/" ++ fromAttrib "href" (head tags)
-        name = ""
-        location = ""
+  where link = "http://us.battle.net/" ++ fromAttrib "href" (head $ dropWhile (~/= "<a>") tags)
+        name = fromTagText $ dropWhile (~/= "<span class=meetups-event-table__cell__name>") tags !! 1
+        location = Location "" "" ""
         date = ""
 
 test :: IO ()
 test = do
   tags <- (splitEvents . findEventsTable) <$> getHtml
-  LBS.writeFile "test.html" $ renderTags $ head tags
+--  BS.writeFile "test.html" $ toByteString $ renderTags $ intercalate [] tags
+  print $ map parseEvent tags
+--  print tags
 
 downloadHtml :: IO ()
-downloadHtml = getHtml >>= LBS.writeFile "downloaded.html"
+downloadHtml = toByteString <$> getHtml >>= BS.writeFile "downloaded.html"
 
 main :: IO ()
 main = return ()
