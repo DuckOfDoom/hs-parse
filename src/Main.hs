@@ -9,14 +9,15 @@ import qualified Data.ByteString      as BS (ByteString, writeFile)
 import qualified Data.ByteString.Lazy as LBS (ByteString, toStrict)
 import           Data.Function        ((&))
 import           Control.Exception    (SomeException, try)
+import Debug.Trace (trace)
 
 import Data.String (fromString)
 import qualified Data.Text            as T
 import qualified Data.Text.Encoding   as E (decodeUtf8, encodeUtf8)
 import qualified Network.Wreq         as Wreq (getWith, param, responseBody, defaults, Response)
 
-import Parse (getEvents)
-import Types (Event, Location)
+import Parse (parseEventsPage)
+import Types (Event)
 
 toByteString :: String -> BS.ByteString
 toByteString = E.encodeUtf8 . T.pack
@@ -24,41 +25,38 @@ toByteString = E.encodeUtf8 . T.pack
 baseUrl :: String
 baseUrl = "http://eu.battle.net/hearthstone/ru/fireside-gatherings"
 
-url :: String
-url = "http://us.battle.net/hearthstone/en/fireside-gatherings?country=RU#fireside-gatherings"
-
 responseToString :: Wreq.Response LBS.ByteString -> String
 responseToString r = (T.unpack . E.decodeUtf8 . LBS.toStrict) (r ^. Wreq.responseBody)
 
-getTablePage :: String -> Int -> IO (Maybe String)
-getTablePage country page = do
-  response <- try (Wreq.getWith opts baseUrl)
+getPage :: String -> Int -> IO (Maybe String)
+getPage country page = do
+  response <- try (Wreq.getWith opts baseUrl) :: IO (Either SomeException (Wreq.Response LBS.ByteString))
   case response of 
        Left _ -> return Nothing
-       Right r -> return $ Just (responseToString <$> r)
+       Right r -> return $ Just (responseToString  r)
   where opts = Wreq.defaults & Wreq.param "country" .~ [fromString country]
                              & Wreq.param "page" .~ [fromString $ show page]
 
---test :: IO ()
---test = do
---  eventTags <- (splitEvents . findEventsTable) <$> getHtml
---  BS.writeFile "test_split.html" $ toByteString $ renderTags $ concat tags
---  BS.writeFile "results.txt" (toByteString (intercalate "\n\n" $ map show $ mapMaybe parseEvent eventTags))
-----  print $ tags
+getAllEvents :: String -> IO [Event]
+getAllEvents locale = 
+  getAllEvents' [] [1..]
+  where getAllEvents' evts [] = return evts
+        -- Downloading pages until there are no more pages on site
+        getAllEvents' evts (x:xs) = do 
+          page <- getPage locale x
+          case page of 
+            Just p -> trace ("Loaded page " ++ show x ++ "...")
+                            (getAllEvents' (evts ++ getEvents p) xs)
+            Nothing -> return evts
 
---downloadPage :: IO ()
---downloadPage = do
---  tags <- (splitEvents . findEventsTable) <$> getHtml
---  BS.writeFile "test.html" $ toByteString $ renderTags $ concat tags
+        -- Parsing all pages 
+        getEvents page = trace ("Found " ++ show (length events) ++ " events!") events
+          where events = Parse.parseEventsPage page
 
-downloadPage :: String -> Int -> IO ()
-downloadPage country page = 
-  toByteString <$> getTablePage country page >>= BS.writeFile fName
-    where fName = "testPage_" ++ country ++ "_" ++ show page ++ ".html" 
-
---
---downloadHtml :: IO ()
---downloadHtml = toByteString <$> getHtml >>= BS.writeFile "downloaded.html"
+test :: IO () 
+test = do 
+  evts <- getAllEvents "RU" 
+  print (length evts)
 
 main :: IO ()
 main = return ()

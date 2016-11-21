@@ -1,7 +1,7 @@
 {-# OPTIONS_GHC -Wall #-}
 
 module Parse
-( getEvents )
+( parseEventsPage )
   where
 
 import           Data.Char         (isAlphaNum)
@@ -13,8 +13,8 @@ import           Text.HTML.TagSoup (Tag, fromAttrib, fromTagText, isTagOpenName,
                                     renderTags, (~/=))
 import           Types             
 
-getEvents :: String -> [Event]
-getEvents html = mapMaybe parseEvent $ (splitEvents . findEventsTable) $ parseTags html
+parseEventsPage :: String -> [Event]
+parseEventsPage html = mapMaybe parseEvent $ (splitEvents . findEventsTable) $ parseTags html
 
 maybeTextAfterTag :: String -> [Tag String] -> Maybe String
 maybeTextAfterTag tag allTags = fromNext $ dropWhile (~/= tag) allTags
