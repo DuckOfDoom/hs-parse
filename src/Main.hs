@@ -3,21 +3,25 @@
 
 module Main where
 
-import           Control.Lens         ((^.), (.~))
+import           Control.Lens         ((.~), (^.))
 
+import           Control.Exception    (SomeException, try)
 import qualified Data.ByteString      as BS (ByteString, writeFile)
 import qualified Data.ByteString.Lazy as LBS (ByteString, toStrict)
 import           Data.Function        ((&))
-import           Control.Exception    (SomeException, try)
-import Debug.Trace (trace)
+import           Debug.Trace          (trace)
 
-import Data.String (fromString)
+import           Data.Aeson               (toJSON)
+import           Data.Aeson.Encode.Pretty (encodePretty)
+
+import           Data.String          (fromString)
 import qualified Data.Text            as T
 import qualified Data.Text.Encoding   as E (decodeUtf8, encodeUtf8)
-import qualified Network.Wreq         as Wreq (getWith, param, responseBody, defaults, Response)
+import qualified Network.Wreq         as Wreq (Response, defaults, getWith,
+                                               param, responseBody)
 
-import Parse (parseEventsPage)
-import Types (Event)
+import           Parse                (parseEventsPage)
+import           Types                (Event)
 
 toByteString :: String -> BS.ByteString
 toByteString = E.encodeUtf8 . T.pack
@@ -31,32 +35,32 @@ responseToString r = (T.unpack . E.decodeUtf8 . LBS.toStrict) (r ^. Wreq.respons
 getPage :: String -> Int -> IO (Maybe String)
 getPage country page = do
   response <- try (Wreq.getWith opts baseUrl) :: IO (Either SomeException (Wreq.Response LBS.ByteString))
-  case response of 
+  case response of
        Left _ -> return Nothing
        Right r -> return $ Just (responseToString  r)
   where opts = Wreq.defaults & Wreq.param "country" .~ [fromString country]
                              & Wreq.param "page" .~ [fromString $ show page]
 
 getAllEvents :: String -> IO [Event]
-getAllEvents locale = 
+getAllEvents locale =
   getAllEvents' [] [1..]
   where getAllEvents' evts [] = return evts
         -- Downloading pages until there are no more pages on site
-        getAllEvents' evts (x:xs) = do 
+        getAllEvents' evts (x:xs) = do
           page <- getPage locale x
-          case page of 
+          case page of
             Just p -> trace ("Loaded page " ++ show x ++ "...")
                             (getAllEvents' (evts ++ getEvents p) xs)
             Nothing -> return evts
 
-        -- Parsing all pages 
+        -- Parsing all pages
         getEvents page = trace ("Found " ++ show (length events) ++ " events!") events
-          where events = Parse.parseEventsPage page
+          where events = (Parse.parseEventsPage page)
 
-test :: IO () 
-test = do 
-  evts <- getAllEvents "RU" 
-  print (length evts)
+test :: IO ()
+test = do
+  evts <- getAllEvents "RU"
+  BS.writeFile "test.txt" $ (foldl1 mappend $ map (LBS.toStrict . encodePretty . toJSON) evts)
 
 main :: IO ()
 main = return ()
