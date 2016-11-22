@@ -1,36 +1,43 @@
 {-# OPTIONS_GHC -Wall #-}
+{-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE DeriveGeneric   #-}
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TemplateHaskell   #-}
 
 module Types where
 
 import           Control.Lens (makeLenses, (^.))
+import           Data.Aeson   (FromJSON, ToJSON, object, toJSON, (.=))
+import           Data.Csv     (ToField, ToRecord, record, toField, toRecord)
 import           GHC.Generics (Generic)
-import           Data.Aeson (ToJSON, FromJSON, object, toJSON, (.=))
 
-type Country = Maybe String
-type State = Maybe String
-type City = Maybe String
+import           Prelude      hiding (id)
 
-data Location = Location Country State City
+data Location = Location { _country :: Maybe String
+                         , _state   :: Maybe String
+                         , _city    :: Maybe String
+                         }
               deriving (Generic)
+
+makeLenses ''Location
 
 instance Show Location where
   show (Location country state city) = show country ++ " " ++ show state ++ " " ++ show city
 
 instance ToJSON Location where
   toJSON (Location country state city) =
-    object ["city" .= city,  "state" .= state, "country" .= country]
+    object [ "city" .= city
+           , "state" .= state
+           , "country" .= country
+           ]
 
 instance FromJSON Location
 
-data Event = Event
-           { _link     :: String
-           , _name     :: Maybe String
-           , _location :: Location
-           , _date     :: Maybe String
-           } deriving (Generic, Show)
+data Event = Event { _id       :: Maybe Int
+                   , _link     :: Maybe String
+                   , _name     :: Maybe String
+                   , _location :: Location
+                   , _date     :: Maybe String
+                   } deriving (Generic, Show)
 
 makeLenses ''Event
 
@@ -42,7 +49,21 @@ makeLenses ''Event
 --             "    Date: " ++ show (evt ^. date)
 
 instance ToJSON Event where
-  toJSON evt = object ["link" .= (evt ^. link), "name" .= (evt ^. name), "location" .= (evt ^. location), "date" .= (evt ^. date)]
+  toJSON evt = object [ "id"       .= (evt ^. id)
+                      , "link"     .= (evt ^. link)
+                      , "name"     .= (evt ^. name)
+                      , "location" .= (evt ^. location)
+                      , "date"     .= (evt ^. date)
+                      ]
 
 instance FromJSON Event
+
+instance ToRecord Event where
+  toRecord evt = record [ toField (evt ^. id)
+                        , toField (evt ^. name)
+                        , toField (evt ^. (location . city))
+                        , toField (evt ^. (location . country))
+                        , toField (evt ^. link)
+                        ]
+
 

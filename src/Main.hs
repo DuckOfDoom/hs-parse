@@ -14,6 +14,8 @@ import           Debug.Trace              (trace)
 import           Data.Aeson               (toJSON)
 import           Data.Aeson.Encode.Pretty
 
+import Data.Csv (encode)
+
 import           Data.String              (fromString)
 import qualified Data.Text                as T
 import qualified Data.Text.Encoding       as E (decodeUtf8, encodeUtf8)
@@ -57,16 +59,20 @@ getAllEvents locale =
         getEvents page = trace ("Found " ++ show (length events) ++ " events!") events
           where events = (Parse.parseEventsPage page)
 
-test :: IO ()
-test = do
+testJSON :: IO ()
+testJSON = do
   evts <- getAllEvents "RU"
-  BS.writeFile "test.txt" $ (LBS.toStrict $ encodePretty' conf (toJSON evts))
-    where sorting = keyOrder ["link", "name", "location", "date"]
+  BS.writeFile "test_json.txt" $ (LBS.toStrict $ encodePretty' conf (toJSON evts))
+    where sorting = keyOrder ["id", "link", "name", "location", "date"]
           conf = Config { confIndent = Spaces 4
                         , confCompare = sorting
                         , confNumFormat = Generic
                         }
 
+testCSV :: IO ()
+testCSV = do
+  evts <- getAllEvents "ALL"
+  BS.writeFile "test_csv.txt" $ (LBS.toStrict $ encode evts)
 
 main :: IO ()
 main = return ()
