@@ -3,25 +3,25 @@
 
 module Main where
 
-import           Control.Lens         ((.~), (^.))
+import           Control.Lens             ((.~), (^.))
 
-import           Control.Exception    (SomeException, try)
-import qualified Data.ByteString      as BS (ByteString, writeFile)
-import qualified Data.ByteString.Lazy as LBS (ByteString, toStrict)
-import           Data.Function        ((&))
-import           Debug.Trace          (trace)
+import           Control.Exception        (SomeException, try)
+import qualified Data.ByteString          as BS (ByteString, writeFile)
+import qualified Data.ByteString.Lazy     as LBS (ByteString, toStrict)
+import           Data.Function            ((&))
+import           Debug.Trace              (trace)
 
 import           Data.Aeson               (toJSON)
-import           Data.Aeson.Encode.Pretty (encodePretty)
+import           Data.Aeson.Encode.Pretty
 
-import           Data.String          (fromString)
-import qualified Data.Text            as T
-import qualified Data.Text.Encoding   as E (decodeUtf8, encodeUtf8)
-import qualified Network.Wreq         as Wreq (Response, defaults, getWith,
-                                               param, responseBody)
+import           Data.String              (fromString)
+import qualified Data.Text                as T
+import qualified Data.Text.Encoding       as E (decodeUtf8, encodeUtf8)
+import qualified Network.Wreq             as Wreq (Response, defaults, getWith,
+                                                   param, responseBody)
 
-import           Parse                (parseEventsPage)
-import           Types                (Event)
+import           Parse                    (parseEventsPage)
+import           Types                    (Event)
 
 toByteString :: String -> BS.ByteString
 toByteString = E.encodeUtf8 . T.pack
@@ -60,7 +60,13 @@ getAllEvents locale =
 test :: IO ()
 test = do
   evts <- getAllEvents "RU"
-  BS.writeFile "test.txt" $ (foldl1 mappend $ map (LBS.toStrict . encodePretty . toJSON) evts)
+  BS.writeFile "test.txt" $ (LBS.toStrict $ encodePretty' conf (toJSON evts))
+    where sorting = keyOrder ["link", "name", "location", "date"]
+          conf = Config { confIndent = Spaces 4
+                        , confCompare = sorting
+                        , confNumFormat = Generic
+                        }
+
 
 main :: IO ()
 main = return ()
