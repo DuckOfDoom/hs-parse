@@ -3,13 +3,11 @@
 
 module Main where
 
-import           Control.Lens             ((.~), (^.))
+import           Control.Lens             ((^.))
 import           Prelude                  hiding (id)
 
-import           Control.Exception        (SomeException, try)
 import qualified Data.ByteString          as BS (ByteString, writeFile)
-import qualified Data.ByteString.Lazy     as LBS (ByteString, toStrict)
-import           Data.Function            ((&))
+import qualified Data.ByteString.Lazy     as LBS (toStrict)
 import           Debug.Trace              (trace, traceIO)
 
 import           Data.Aeson               (toJSON)
@@ -17,12 +15,12 @@ import           Data.Aeson.Encode.Pretty
 
 import           Data.Csv                 (encode)
 
-import           Data.String              (fromString)
 import qualified Data.Text                as T
-import qualified Data.Text.Encoding       as E (decodeUtf8, encodeUtf8)
-import qualified Network.Wreq             as Wreq (Response, defaults, get,
-                                                   getWith, param, responseBody)
+import qualified Data.Text.Encoding       as E (encodeUtf8)
 
+import qualified Network                  as Net (maybeGetWith)
+
+import           Geocode                  (positionToAddress)
 import           Parse                    (parseEventsPage, updateEvent)
 import           Types
 
@@ -32,17 +30,11 @@ toByteString = E.encodeUtf8 . T.pack
 baseUrl :: String
 baseUrl = "http://eu.battle.net/hearthstone/ru/fireside-gatherings"
 
-responseToString :: Wreq.Response LBS.ByteString -> String
-responseToString r = (T.unpack . E.decodeUtf8 . LBS.toStrict) (r ^. Wreq.responseBody)
-
 getPage :: String -> Int -> IO (Maybe String)
-getPage region page = do
-  response <- try (Wreq.getWith opts baseUrl) :: IO (Either SomeException (Wreq.Response LBS.ByteString))
-  case response of
-       Left _ -> return Nothing
-       Right r -> return $ Just (responseToString r)
-  where opts = Wreq.defaults & Wreq.param "country" .~ [fromString region]
-                             & Wreq.param "page" .~ [fromString $ show page]
+getPage region pageNumber = Net.maybeGetWith baseUrl opts
+  where opts = [ ("country", region)
+               , ("page", show pageNumber)
+               ]
 
 updateAllEvents :: [Event] -> IO [Event]
 updateAllEvents = mapM update
@@ -50,11 +42,11 @@ updateAllEvents = mapM update
                         Nothing -> trace ("Event #" ++ show (e ^. id) ++ "has no link!")
                                          (return e)
                         Just eventLink -> do
-                          response <- try (Wreq.get eventLink) :: IO (Either SomeException (Wreq.Response LBS.ByteString))
+                          maybeEventPage <- Net.maybeGetWith eventLink []
                           traceIO ("   Processing event #" ++ (drop 5 $ show (e ^. id)) ++ "...")
-                          case response of
-                               Left _ -> return e
-                               Right r -> return $ Parse.updateEvent e (responseToString r)
+                          case maybeEventPage of
+                               Nothing -> return e
+                               Just p -> return $ Parse.updateEvent e p
 
 getAllEvents :: String -> IO [Event]
 getAllEvents locale =

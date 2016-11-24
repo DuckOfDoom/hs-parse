@@ -1,5 +1,6 @@
 {-# OPTIONS_GHC -Wall #-}
 {-# LANGUAGE DeriveGeneric     #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell   #-}
 
@@ -8,11 +9,12 @@ module Types where
 import           Control.Lens (makeLenses, (^.))
 import           Data.Aeson   (FromJSON, ToJSON, object, toJSON, (.=))
 import           Data.Csv     (ToField, ToRecord, record, toField, toRecord)
+import           Data.String  (fromString)
 import           GHC.Generics (Generic)
 
 import           Prelude      hiding (id)
 
--- Location 
+-- Location
 data Location = Location { _country :: Maybe String
                          , _state   :: Maybe String
                          , _city    :: Maybe String
@@ -21,27 +23,31 @@ data Location = Location { _country :: Maybe String
 
 makeLenses ''Location
 
+instance ToField Coords where
+  toField (x, y) = fromString (show x ++ "," ++ show y)
+
 defaultLocation = Location { _country = Nothing
                            , _state = Nothing
                            , _city = Nothing
                            }
 
 instance Show Location where
-  show (Location country state city) = show country ++ " " ++ show state ++ " " ++ show city
+  show l = show (l ^. country) ++ " " ++ show (l ^. state) ++ " " ++ show (l ^. city)
 
 instance ToJSON Location where
-  toJSON (Location country state city) =
-    object [ "city" .= city
-           , "state" .= state
-           , "country" .= country
+  toJSON l = 
+    object [ "city" .= (l ^. city)
+           , "state" .= (l ^. state)
+           , "country" .= (l ^. country)
            ]
 
 instance FromJSON Location
 
--- Event 
+-- Event
 data Event = Event { _id        :: Maybe Int
                    , _link      :: Maybe String
                    , _name      :: Maybe String
+                   , _coords    :: Maybe (Double, Double)
                    , _location  :: Location
                    , _extraLink :: Maybe String
                    , _date      :: Maybe String
@@ -52,6 +58,7 @@ makeLenses ''Event
 defaultEvent = Event { _id = Nothing
                      , _link = Nothing
                      , _name = Nothing
+                     , _coords = Nothing
                      , _location = Location { _country = Nothing
                                             , _state = Nothing
                                             , _city = Nothing
@@ -86,6 +93,7 @@ instance ToRecord Event where
                         , toField (evt ^. (location . country))
                         , toField (evt ^. link)
                         , toField (evt ^. extraLink)
+                        , toField (evt ^. coords)
                         ]
 
 
