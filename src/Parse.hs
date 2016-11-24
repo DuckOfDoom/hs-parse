@@ -9,7 +9,7 @@ module Parse
 import           Control.Lens        ((&), (.~), (^.))
 import           Control.Monad       (liftM)
 import           Data.Char           (isAlphaNum, isDigit)
-import           Data.List           (dropWhileEnd, find)
+import           Data.List           (dropWhileEnd, find, isPrefixOf)
 import           Data.List.Split     (keepDelimsL, split, whenElt)
 import           Data.Maybe          (mapMaybe)
 import           Debug.Trace         (trace)
@@ -58,11 +58,14 @@ updateEvent evt html = let tags = (dropWhile (~/= "<div class=\"meetup-header me
                            dateTime = liftM (fromAttrib "datetime") (find (isTagOpenName "time") tags)
                            oneMoreLink = liftM (fromAttrib "href") (find (isTagOpenName "a") tags)
                         in evt & date .~ (convertDate dateTime)
-                               & extraLink .~ oneMoreLink
-
+                               & extraLink .~ (convertLink oneMoreLink)
   where convertDate Nothing = Nothing
         convertDate (Just str) | (length str < 10) = Nothing
                                | otherwise = Just $ day ++ "." ++ month ++ "." ++ year
                                where year = take 4 str
                                      month = (take 2 . drop 5) str
                                      day = (take 2 . drop 8) str
+
+        convertLink Nothing = Nothing
+        convertLink (Just l) | ("https://maps.google.com" `isPrefixOf` l) = Nothing
+                             | otherwise = Just l
