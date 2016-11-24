@@ -12,6 +12,7 @@ import           GHC.Generics (Generic)
 
 import           Prelude      hiding (id)
 
+-- Location 
 data Location = Location { _country :: Maybe String
                          , _state   :: Maybe String
                          , _city    :: Maybe String
@@ -19,6 +20,11 @@ data Location = Location { _country :: Maybe String
               deriving (Generic)
 
 makeLenses ''Location
+
+defaultLocation = Location { _country = Nothing
+                           , _state = Nothing
+                           , _city = Nothing
+                           }
 
 instance Show Location where
   show (Location country state city) = show country ++ " " ++ show state ++ " " ++ show city
@@ -32,6 +38,7 @@ instance ToJSON Location where
 
 instance FromJSON Location
 
+-- Event 
 data Event = Event { _id        :: Maybe Int
                    , _link      :: Maybe String
                    , _name      :: Maybe String

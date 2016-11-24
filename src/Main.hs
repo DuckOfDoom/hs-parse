@@ -10,7 +10,7 @@ import           Control.Exception        (SomeException, try)
 import qualified Data.ByteString          as BS (ByteString, writeFile)
 import qualified Data.ByteString.Lazy     as LBS (ByteString, toStrict)
 import           Data.Function            ((&))
-import           Debug.Trace              (trace)
+import           Debug.Trace              (trace, traceIO)
 
 import           Data.Aeson               (toJSON)
 import           Data.Aeson.Encode.Pretty
@@ -25,7 +25,6 @@ import qualified Network.Wreq             as Wreq (Response, defaults, get,
 
 import           Parse                    (parseEventsPage, updateEvent)
 import           Types
-import Text.HTML.TagSoup 
 
 toByteString :: String -> BS.ByteString
 toByteString = E.encodeUtf8 . T.pack
@@ -37,12 +36,12 @@ responseToString :: Wreq.Response LBS.ByteString -> String
 responseToString r = (T.unpack . E.decodeUtf8 . LBS.toStrict) (r ^. Wreq.responseBody)
 
 getPage :: String -> Int -> IO (Maybe String)
-getPage country page = do
+getPage region page = do
   response <- try (Wreq.getWith opts baseUrl) :: IO (Either SomeException (Wreq.Response LBS.ByteString))
   case response of
        Left _ -> return Nothing
        Right r -> return $ Just (responseToString r)
-  where opts = Wreq.defaults & Wreq.param "country" .~ [fromString country]
+  where opts = Wreq.defaults & Wreq.param "country" .~ [fromString region]
                              & Wreq.param "page" .~ [fromString $ show page]
 
 updateAllEvents :: [Event] -> IO [Event]
@@ -51,8 +50,8 @@ updateAllEvents = mapM update
                         Nothing -> trace ("Event #" ++ show (e ^. id) ++ "has no link!")
                                          (return e)
                         Just eventLink -> do
-                          putStrLn ("   Updating event #" ++ show (e ^. id) ++ "...")
                           response <- try (Wreq.get eventLink) :: IO (Either SomeException (Wreq.Response LBS.ByteString))
+                          traceIO ("   Processing event #" ++ (drop 5 $ show (e ^. id)) ++ "...")
                           case response of
                                Left _ -> return e
                                Right r -> return $ Parse.updateEvent e (responseToString r)
@@ -66,11 +65,11 @@ getAllEvents locale =
           page <- getPage locale x
           case page of
             Just p -> trace ("Loaded page " ++ show x ++ "...")
-                            (getAllEvents' (evts ++ getEvents p) xs)
+                            (getAllEvents' (evts ++ getEventsFromPage x p) xs)
             Nothing -> return evts
 
         -- Parsing all pages
-        getEvents page = trace ("Found " ++ show (length events) ++ " events!") events
+        getEventsFromPage pageNumber page = trace ("Found " ++ show (length events) ++ " events on page " ++ show pageNumber ++ ":") events
           where events = (Parse.parseEventsPage page)
 
 

@@ -6,17 +6,16 @@ module Parse
   )
   where
 
-import           Control.Lens        ((&), (.~), (^.))
-import           Control.Monad       (liftM)
-import           Data.Char           (isAlphaNum, isDigit)
-import           Data.List           (dropWhileEnd, find, isPrefixOf)
-import           Data.List.Split     (keepDelimsL, split, whenElt)
-import           Data.Maybe          (mapMaybe)
-import           Debug.Trace         (trace)
-import           Text.HTML.TagSoup   (Tag, fromAttrib, fromTagText,
-                                      isTagOpenName, isTagText, maybeTagText,
-                                      parseTags, (~/=))
-import           Text.Read           (readMaybe)
+import           Control.Lens      ((&), (.~))
+import           Control.Monad     (liftM)
+import           Data.Char         (isAlphaNum, isDigit)
+import           Data.List         (find, isPrefixOf)
+import           Data.List.Split   (keepDelimsL, split, whenElt)
+import           Data.Maybe        (mapMaybe)
+import           Prelude           hiding (id)
+import           Text.HTML.TagSoup (Tag, fromAttrib, fromTagText, isTagOpenName,
+                                    isTagText, maybeTagText, parseTags, (~/=))
+import           Text.Read         (readMaybe)
 import           Types
 
 parseEventsPage :: String -> [Event]
@@ -39,26 +38,23 @@ splitEvents = drop 1 . split ((keepDelimsL . whenElt) isStartTag) . filter isNot
 parseEventTableEntry :: [Tag String] -> Maybe Event
 parseEventTableEntry tags | length tags < 3 = Nothing
                           | (~/= "<a>") $ head tags = Nothing
-                          | otherwise = let eventLink = Just $ "http://us.battle.net/" ++ fromAttrib "href" (head $ dropWhile (~/= "<a>") tags)
-                                            eventId = case eventLink of
-                                                           Just l -> readMaybe (dropWhile (not . isDigit) l)
-                                                           Nothing -> return (-1)
-
-                                            eventName = maybeTextAfterTag "<span class=meetups-event-table__cell__name>" tags
-                                            eventLocation = Location country state city
-                                              where country = maybeTextAfterTag "<span class=meetups-event-table__cell__country>" tags
-                                                    state = maybeTextAfterTag "<span class=meetups-event-table__cell__state>" tags
-                                                    city = maybeTextAfterTag "<span class=meetups-event-table__cell__city>" tags
-                                            eventDate = parseDate <$> maybeTextAfterTag "<span class=\"meetups-event-table__cell meetups-event-table__cell--time\">" tags
-                                              where parseDate = dropWhile (not . isAlphaNum) . dropWhileEnd (not . isAlphaNum)
-                                         in Just (Event eventId eventLink eventName eventLocation (Just "") eventDate)
+                          | otherwise = Just (defaultEvent & id .~ eventId
+                                                           & link .~ eventLink
+                                                           & name .~ maybeTextAfterTag "<span class=meetups-event-table__cell__name>" tags
+                                                           & location .~ (defaultLocation & country .~ maybeTextAfterTag "<span class=meetups-event-table__cell__country>" tags
+                                                                                          & state .~ maybeTextAfterTag "<span class=meetups-event-table__cell__state>" tags
+                                                                                          & city .~ maybeTextAfterTag "<span class=meetups-event-table__cell__city>" tags))
+                            where eventLink = Just $ "http://eu.battle.net/" ++ fromAttrib "href" (head $ dropWhile (~/= "<a>") tags)
+                                  eventId = case eventLink of
+                                                 Just l -> readMaybe (dropWhile (not . isDigit) l)
+                                                 Nothing -> return (-1)
 
 updateEvent :: Event -> String -> Event
 updateEvent evt html = let tags = (dropWhile (~/= "<div class=\"meetup-header meetup-header--fsg-detail\">") $ parseTags html)
                            dateTime = liftM (fromAttrib "datetime") (find (isTagOpenName "time") tags)
                            oneMoreLink = liftM (fromAttrib "href") (find (isTagOpenName "a") tags)
                         in evt & date .~ (convertDate dateTime)
-                               & extraLink .~ (convertLink oneMoreLink)
+                               & extraLink .~ (convertExtraLink oneMoreLink)
   where convertDate Nothing = Nothing
         convertDate (Just str) | (length str < 10) = Nothing
                                | otherwise = Just $ day ++ "." ++ month ++ "." ++ year
@@ -66,6 +62,6 @@ updateEvent evt html = let tags = (dropWhile (~/= "<div class=\"meetup-header me
                                      month = (take 2 . drop 5) str
                                      day = (take 2 . drop 8) str
 
-        convertLink Nothing = Nothing
-        convertLink (Just l) | ("https://maps.google.com" `isPrefixOf` l) = Nothing
+        convertExtraLink Nothing = Nothing
+        convertExtraLink (Just l) | ("https://maps.google.com" `isPrefixOf` l) = Nothing
                              | otherwise = Just l
