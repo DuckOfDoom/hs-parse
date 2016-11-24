@@ -32,14 +32,26 @@ instance ToJSON Location where
 
 instance FromJSON Location
 
-data Event = Event { _id       :: Maybe Int
-                   , _link     :: Maybe String
-                   , _name     :: Maybe String
-                   , _location :: Location
-                   , _date     :: Maybe String
+data Event = Event { _id        :: Maybe Int
+                   , _link      :: Maybe String
+                   , _name      :: Maybe String
+                   , _location  :: Location
+                   , _extraLink :: Maybe String
+                   , _date      :: Maybe String
                    } deriving (Generic, Show)
 
 makeLenses ''Event
+
+defaultEvent = Event { _id = Nothing
+                     , _link = Nothing
+                     , _name = Nothing
+                     , _location = Location { _country = Nothing
+                                            , _state = Nothing
+                                            , _city = Nothing
+                                            }
+                     , _extraLink = Nothing
+                     , _date = Nothing
+                     }
 
 --instance Show Event where
 --  show evt = "Event:\n" ++
@@ -49,11 +61,12 @@ makeLenses ''Event
 --             "    Date: " ++ show (evt ^. date)
 
 instance ToJSON Event where
-  toJSON evt = object [ "id"       .= (evt ^. id)
-                      , "link"     .= (evt ^. link)
-                      , "name"     .= (evt ^. name)
-                      , "location" .= (evt ^. location)
-                      , "date"     .= (evt ^. date)
+  toJSON evt = object [ "id"         .= (evt ^. id)
+                      , "link"       .= (evt ^. link)
+                      , "name"       .= (evt ^. name)
+                      , "location"   .= (evt ^. location)
+                      , "extra_link" .= (evt ^. extraLink)
+                      , "date"       .= (evt ^. date)
                       ]
 
 instance FromJSON Event
@@ -61,9 +74,11 @@ instance FromJSON Event
 instance ToRecord Event where
   toRecord evt = record [ toField (evt ^. id)
                         , toField (evt ^. name)
+                        , toField (evt ^. date)
                         , toField (evt ^. (location . city))
                         , toField (evt ^. (location . country))
                         , toField (evt ^. link)
+                        , toField (evt ^. extraLink)
                         ]
 
 

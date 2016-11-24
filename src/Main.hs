@@ -4,6 +4,7 @@
 module Main where
 
 import           Control.Lens             ((.~), (^.))
+import           Prelude                  hiding (id)
 
 import           Control.Exception        (SomeException, try)
 import qualified Data.ByteString          as BS (ByteString, writeFile)
@@ -14,16 +15,17 @@ import           Debug.Trace              (trace)
 import           Data.Aeson               (toJSON)
 import           Data.Aeson.Encode.Pretty
 
-import Data.Csv (encode)
+import           Data.Csv                 (encode)
 
 import           Data.String              (fromString)
 import qualified Data.Text                as T
 import qualified Data.Text.Encoding       as E (decodeUtf8, encodeUtf8)
-import qualified Network.Wreq             as Wreq (Response, defaults, getWith,
-                                                   param, responseBody)
+import qualified Network.Wreq             as Wreq (Response, defaults, get,
+                                                   getWith, param, responseBody)
 
-import           Parse                    (parseEventsPage)
-import           Types                    (Event)
+import           Parse                    (parseEventsPage, updateEvent)
+import           Types
+import Text.HTML.TagSoup 
 
 toByteString :: String -> BS.ByteString
 toByteString = E.encodeUtf8 . T.pack
@@ -39,13 +41,25 @@ getPage country page = do
   response <- try (Wreq.getWith opts baseUrl) :: IO (Either SomeException (Wreq.Response LBS.ByteString))
   case response of
        Left _ -> return Nothing
-       Right r -> return $ Just (responseToString  r)
+       Right r -> return $ Just (responseToString r)
   where opts = Wreq.defaults & Wreq.param "country" .~ [fromString country]
                              & Wreq.param "page" .~ [fromString $ show page]
 
+updateAllEvents :: [Event] -> IO [Event]
+updateAllEvents = mapM update
+  where update e = case (e ^. link) of
+                        Nothing -> trace ("Event #" ++ show (e ^. id) ++ "has no link!")
+                                         (return e)
+                        Just eventLink -> do
+                          putStrLn ("   Updating event #" ++ show (e ^. id) ++ "...")
+                          response <- try (Wreq.get eventLink) :: IO (Either SomeException (Wreq.Response LBS.ByteString))
+                          case response of
+                               Left _ -> return e
+                               Right r -> return $ Parse.updateEvent e (responseToString r)
+
 getAllEvents :: String -> IO [Event]
 getAllEvents locale =
-  getAllEvents' [] [1..]
+  getAllEvents' [] [1..] >>= updateAllEvents
   where getAllEvents' evts [] = return evts
         -- Downloading pages until there are no more pages on site
         getAllEvents' evts (x:xs) = do
@@ -58,6 +72,7 @@ getAllEvents locale =
         -- Parsing all pages
         getEvents page = trace ("Found " ++ show (length events) ++ " events!") events
           where events = (Parse.parseEventsPage page)
+
 
 testJSON :: IO ()
 testJSON = do
