@@ -14,7 +14,7 @@ import           Data.List.Split   (keepDelimsL, split, whenElt)
 import           Data.Maybe        (mapMaybe)
 import           Prelude           hiding (id)
 import           Text.HTML.TagSoup (Tag, fromAttrib, fromTagText, isTagOpenName,
-                                    isTagText, maybeTagText, parseTags, (~/=))
+                                    isTagText, maybeTagText, parseTags, (~/=), (~==))
 import           Text.Read         (readMaybe)
 import           Types
 
@@ -44,7 +44,7 @@ parseEventTableEntry tags | length tags < 3 = Nothing
                                                            & location .~ (defaultLocation & country .~ maybeTextAfterTag "<span class=meetups-event-table__cell__country>" tags
                                                                                           & state .~ maybeTextAfterTag "<span class=meetups-event-table__cell__state>" tags
                                                                                           & city .~ maybeTextAfterTag "<span class=meetups-event-table__cell__city>" tags))
-                            where eventLink = Just $ "http://eu.battle.net/" ++ fromAttrib "href" (head $ dropWhile (~/= "<a>") tags)
+                            where eventLink = Just $ "http://eu.battle.net" ++ fromAttrib "href" (head $ dropWhile (~/= "<a>") tags)
                                   eventId = case eventLink of
                                                  Just l -> readMaybe (dropWhile (not . isDigit) l)
                                                  Nothing -> return (-1)
@@ -53,8 +53,11 @@ updateEvent :: Event -> String -> Event
 updateEvent evt html = let tags = (dropWhile (~/= "<div class=\"meetup-header meetup-header--fsg-detail\">") $ parseTags html)
                            dateTime = liftM (fromAttrib "datetime") (find (isTagOpenName "time") tags)
                            oneMoreLink = liftM (fromAttrib "href") (find (isTagOpenName "a") tags)
+                           mapTag = (find (~== "<div class=\"map-item\">") tags)
                         in evt & date .~ (convertDate dateTime)
                                & extraLink .~ (convertExtraLink oneMoreLink)
+                               & coords .~ (convertCoords mapTag)
+
   where convertDate Nothing = Nothing
         convertDate (Just str) | (length str < 10) = Nothing
                                | otherwise = Just $ day ++ "." ++ month ++ "." ++ year
@@ -65,3 +68,7 @@ updateEvent evt html = let tags = (dropWhile (~/= "<div class=\"meetup-header me
         convertExtraLink Nothing = Nothing
         convertExtraLink (Just l) | ("https://maps.google.com" `isPrefixOf` l) = Nothing
                              | otherwise = Just l
+
+        convertCoords Nothing = Nothing
+        convertCoords (Just tag) = Just ((read (fromAttrib "data-lat" tag)) :: Double, -- Потенциальное место для фейла :D
+                                         (read (fromAttrib "data-lng" tag)) :: Double)

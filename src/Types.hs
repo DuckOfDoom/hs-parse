@@ -23,9 +23,6 @@ data Location = Location { _country :: Maybe String
 
 makeLenses ''Location
 
-instance ToField Coords where
-  toField (x, y) = fromString (show x ++ "," ++ show y)
-
 defaultLocation = Location { _country = Nothing
                            , _state = Nothing
                            , _city = Nothing
@@ -93,7 +90,8 @@ instance ToRecord Event where
                         , toField (evt ^. (location . country))
                         , toField (evt ^. link)
                         , toField (evt ^. extraLink)
-                        , toField (evt ^. coords)
+                        , toField (fst <$> evt ^. (coords))
+                        , toField (snd <$> evt ^. (coords))
                         ]
 
 

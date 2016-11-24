@@ -20,7 +20,6 @@ import qualified Data.Text.Encoding       as E (encodeUtf8)
 
 import qualified Network                  as Net (maybeGetWith)
 
-import           Geocode                  (positionToAddress)
 import           Parse                    (parseEventsPage, updateEvent)
 import           Types
 
