@@ -70,5 +70,5 @@ updateEvent evt html = let tags = (dropWhile (~/= "<div class=\"meetup-header me
                              | otherwise = Just l
 
         convertCoords Nothing = Nothing
-        convertCoords (Just tag) = Just ((read (fromAttrib "data-lat" tag)) :: Double, -- Потенциальное место для фейла :D
-                                         (read (fromAttrib "data-lng" tag)) :: Double)
+        convertCoords (Just tag) = Just (Coords { _lat = read (fromAttrib "data-lat" tag) :: Double -- Потенциальное место для фейла :D
+                                                , _lng = read (fromAttrib "data-lng" tag) :: Double})

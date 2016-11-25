@@ -12,7 +12,7 @@ url :: String
 url = "https://maps.googleapis.com/maps/api/geocode/json"
 
 geocodeAPIToken :: Maybe String
-geocodeAPIToken = Just 
+geocodeAPIToken = Just ""
 
 positionToAddress :: (Double, Double) -> IO (Maybe String)
 positionToAddress coords = positionToAddress' geocodeAPIToken coords

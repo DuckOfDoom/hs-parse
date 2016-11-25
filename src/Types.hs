@@ -14,6 +14,18 @@ import           GHC.Generics (Generic)
 
 import           Prelude      hiding (id)
 
+data Coords = Coords { _lat :: Double
+                     , _lng :: Double
+                     }
+  deriving (Show, Generic)
+
+makeLenses ''Coords
+
+instance ToField Coords where 
+  toField c = fromString (show (c ^. lat) ++ "," ++ show (c ^. lng))
+instance ToJSON Coords
+instance FromJSON Coords
+
 -- Location
 data Location = Location { _country :: Maybe String
                          , _state   :: Maybe String
@@ -44,7 +56,7 @@ instance FromJSON Location
 data Event = Event { _id        :: Maybe Int
                    , _link      :: Maybe String
                    , _name      :: Maybe String
-                   , _coords    :: Maybe (Double, Double)
+                   , _coords    :: Maybe Coords
                    , _location  :: Location
                    , _extraLink :: Maybe String
                    , _date      :: Maybe String
@@ -90,8 +102,7 @@ instance ToRecord Event where
                         , toField (evt ^. (location . country))
                         , toField (evt ^. link)
                         , toField (evt ^. extraLink)
-                        , toField (fst <$> evt ^. (coords))
-                        , toField (snd <$> evt ^. (coords))
+                        , toField (evt ^. coords)
                         ]
 
 

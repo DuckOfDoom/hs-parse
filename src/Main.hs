@@ -76,7 +76,7 @@ testJSON = do
 
 testCSV :: IO ()
 testCSV = do
-  evts <- getAllEvents "RU"
+  evts <- getAllEvents "ALL"
   BS.writeFile "test_csv.txt" $ (LBS.toStrict $ encode evts)
 
 main :: IO ()
