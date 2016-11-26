@@ -37,14 +37,15 @@ getPage region pageNumber = Net.maybeGetWith baseUrl opts
 
 updateAllEvents :: [Event] -> IO [Event]
 updateAllEvents = mapM update
-  where update e = case (e ^. link) of
+  where update e = case e ^. link of
                         Nothing -> trace ("Event #" ++ show (e ^. id) ++ "has no link!")
                                          (return e)
                         Just eventLink -> do
                           maybeEventPage <- Net.maybeGetWith eventLink []
-                          traceIO ("   Processing event #" ++ (drop 5 $ show (e ^. id)) ++ "...")
+                          traceIO ("   Processing event #" ++ drop 5 (show (e ^. id)) ++ "...")
                           case maybeEventPage of
-                               Nothing -> return e
+                               Nothing -> trace ("  Retrying event event " ++ drop 5 (show (e ^. id)) ++ ", retrying...")
+                                                (update e)
                                Just p -> return $ Parse.updateEvent e p
 
 getAllEvents :: String -> IO [Event]
@@ -61,23 +62,45 @@ getAllEvents locale =
 
         -- Parsing all pages
         getEventsFromPage pageNumber page = trace ("Found " ++ show (length events) ++ " events on page " ++ show pageNumber ++ ":") events
-          where events = (Parse.parseEventsPage page)
+          where events = Parse.parseEventsPage page
 
+eventsToCSV :: [Event] -> String -> IO ()
+eventsToCSV events filename = do 
+  traceIO $ "Writing CSV to '" ++ filename ++ "'"
+  BS.writeFile filename (LBS.toStrict $ encode events)
 
-testJSON :: IO ()
-testJSON = do
-  evts <- getAllEvents "RU"
-  BS.writeFile "test_json.txt" $ (LBS.toStrict $ encodePretty' conf (toJSON evts))
-    where sorting = keyOrder ["id", "link", "name", "location", "date"]
-          conf = Config { confIndent = Spaces 4
-                        , confCompare = sorting
-                        , confNumFormat = Generic
-                        }
-
-testCSV :: IO ()
-testCSV = do
-  evts <- getAllEvents "ALL"
-  BS.writeFile "test_csv.txt" $ (LBS.toStrict $ encode evts)
+eventsToJSON :: [Event] -> String -> IO ()
+eventsToJSON events filename = do 
+  traceIO $ "Writing JSON to '" ++ filename ++ "'"
+  BS.writeFile filename (LBS.toStrict $ encodePretty' conf (toJSON events))
+      where sorting = keyOrder ["id", "link", "name", "location", "date"]
+            conf = Config { confIndent = Spaces 4
+                          , confCompare = sorting
+                          , confNumFormat = Generic
+                          }
 
 main :: IO ()
-main = return ()
+main = do
+  regions <- askRegion
+  fileName <- askFilename
+  events <- foldMap getAllEvents regions 
+  eventsToCSV events fileName
+
+  where askRegion = do
+          putStrLn ("Oh shit whaddup! Please select region:\n" ++
+                    "1. RU\n" ++
+                    "2. CIS\n" ++
+                    "3. ALL")
+          region <- getLine
+          case region of 
+              "1" -> return (["RU"] :: [String])
+              "2" -> return (["RU", "BY", "UA"] :: [String])
+              "3" -> return (["ALL"] :: [String])
+              _ -> return ([] :: [String])
+
+        askFilename = do
+          putStrLn "Choose filename for results (enmpty for 'resultsCSV.txt')"
+          fileName <- getLine
+          case fileName of 
+               "" -> return "resultsCSV.txt"
+               _ -> return fileName
