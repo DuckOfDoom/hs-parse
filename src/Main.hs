@@ -4,6 +4,7 @@
 module Main where
 
 import           Control.Lens             ((^.))
+import           System.Exit
 import           Prelude                  hiding (id)
 
 import qualified Data.ByteString          as BS (ByteString, writeFile)
@@ -44,8 +45,7 @@ updateAllEvents = mapM update
                           maybeEventPage <- Net.maybeGetWith eventLink []
                           traceIO ("   Processing event #" ++ drop 5 (show (e ^. id)) ++ "...")
                           case maybeEventPage of
-                               Nothing -> trace ("  Retrying event event " ++ drop 5 (show (e ^. id)) ++ ", retrying...")
-                                                (update e)
+                               Nothing -> update e -- Retrying failed events
                                Just p -> return $ Parse.updateEvent e p
 
 getAllEvents :: String -> IO [Event]
@@ -65,13 +65,13 @@ getAllEvents locale =
           where events = Parse.parseEventsPage page
 
 eventsToCSV :: [Event] -> String -> IO ()
-eventsToCSV events filename = do 
-  traceIO $ "Writing CSV to '" ++ filename ++ "'"
+eventsToCSV events filename = do
+  traceIO $ "Writing CSV to '" ++ filename ++ "'..."
   BS.writeFile filename (LBS.toStrict $ encode events)
 
 eventsToJSON :: [Event] -> String -> IO ()
-eventsToJSON events filename = do 
-  traceIO $ "Writing JSON to '" ++ filename ++ "'"
+eventsToJSON events filename = do
+  traceIO $ "Writing JSON to '" ++ filename ++ "'..."
   BS.writeFile filename (LBS.toStrict $ encodePretty' conf (toJSON events))
       where sorting = keyOrder ["id", "link", "name", "location", "date"]
             conf = Config { confIndent = Spaces 4
@@ -83,8 +83,11 @@ main :: IO ()
 main = do
   regions <- askRegion
   fileName <- askFilename
-  events <- foldMap getAllEvents regions 
+  events <- foldMap getAllEvents regions
   eventsToCSV events fileName
+  putStrLn $ "Done! Processed " ++ show (length events) ++ " events!"
+  _ <- getLine
+  return ()
 
   where askRegion = do
           putStrLn ("Oh shit whaddup! Please select region:\n" ++
@@ -92,15 +95,15 @@ main = do
                     "2. CIS\n" ++
                     "3. ALL")
           region <- getLine
-          case region of 
+          case region of
               "1" -> return (["RU"] :: [String])
               "2" -> return (["RU", "BY", "UA"] :: [String])
               "3" -> return (["ALL"] :: [String])
-              _ -> return ([] :: [String])
+              _ -> die "'1', '2' or '3' please."
 
         askFilename = do
-          putStrLn "Choose filename for results (enmpty for 'resultsCSV.txt')"
+          putStrLn "Choose filename for results (empty for 'resultsCSV.txt')"
           fileName <- getLine
-          case fileName of 
+          case fileName of
                "" -> return "resultsCSV.txt"
                _ -> return fileName
