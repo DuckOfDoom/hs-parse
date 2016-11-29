@@ -14,7 +14,8 @@ import           Data.List.Split   (keepDelimsL, split, whenElt)
 import           Data.Maybe        (mapMaybe)
 import           Prelude           hiding (id)
 import           Text.HTML.TagSoup (Tag, fromAttrib, fromTagText, isTagOpenName,
-                                    isTagText, maybeTagText, parseTags, (~/=), (~==))
+                                    isTagText, maybeTagText, parseTags, (~/=),
+                                    (~==))
 import           Text.Read         (readMaybe)
 import           Types
 

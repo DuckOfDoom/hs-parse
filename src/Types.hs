@@ -21,7 +21,7 @@ data Coords = Coords { _lat :: Double
 
 makeLenses ''Coords
 
-instance ToField Coords where 
+instance ToField Coords where
   toField c = fromString (show (c ^. lat) ++ "," ++ show (c ^. lng))
 instance ToJSON Coords
 instance FromJSON Coords
@@ -44,7 +44,7 @@ instance Show Location where
   show l = show (l ^. country) ++ " " ++ show (l ^. state) ++ " " ++ show (l ^. city)
 
 instance ToJSON Location where
-  toJSON l = 
+  toJSON l =
     object [ "city" .= (l ^. city)
            , "state" .= (l ^. state)
            , "country" .= (l ^. country)
