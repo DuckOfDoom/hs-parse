@@ -6,6 +6,8 @@ module EventProcessing
   where
 
 import           Control.Lens ((^.))
+--import           Control.Concurrent (MVar, newMVar, modifyMVar_, readMVar, forkIO, threadDelay, setNumCapabilities)
+
 import           Debug.Trace  (trace, traceIO)
 import qualified Network      as Net (maybeGetWith)
 import           Parse        (parseEventsPage, updateEvent)
@@ -32,6 +34,36 @@ updateAllEvents = mapM update
                           case maybeEventPage of
                                Nothing -> update e -- Retrying failed events
                                Just p -> return $ Parse.updateEvent e p
+
+--updateAllEventsConc :: [Event] -> IO [Event]
+--updateAllEventsConc events = do 
+--  setNumCapabilities 4
+--  updatedMVar <- newMVar []
+--  mapM_ (update updatedMVar) events
+--  waitAndReturn (length events) updatedMVar
+--  where update :: MVar [Event] -> Event -> IO ()
+--        update updated' e = case e ^. link of
+--                            Nothing -> do 
+--                              traceIO ("Event #" ++ show (e ^. id) ++ "has no link!")
+--                              modifyMVar_ updated' (\u -> return $ e : u)
+--                            Just eventLink -> do 
+--                              traceIO ("   Processing event #" ++ drop 5 (show (e ^. id)) ++ "...")
+--                              _ <- forkIO $ do
+--                                maybeEventPage <- Net.maybeGetWith eventLink []
+--                                case maybeEventPage of
+--                                     Nothing -> update updated' e -- Retrying failed events
+--                                     Just p -> do modifyMVar_ updated' (\u -> return $ ((Parse.updateEvent e p) : u))
+--                              return ()
+--
+--        -- Waiting until all events are updated by comparing length of source list and updated list in MVar
+--        waitAndReturn :: Int -> MVar [Event] -> IO [Event]
+--        waitAndReturn sourceLength updated' = do
+--          updatedList <- readMVar updated'
+--          threadDelay 100000
+--          if length updatedList == sourceLength 
+--             then return $ updatedList 
+--             else waitAndReturn sourceLength updated'
+
 
 getAllEvents :: String -> IO [Event]
 getAllEvents locale =
