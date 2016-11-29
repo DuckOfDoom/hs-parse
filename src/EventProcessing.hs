@@ -30,10 +30,13 @@ updateAllEvents = mapM update
                                          (return e)
                         Just eventLink -> do
                           maybeEventPage <- Net.maybeGetWith eventLink []
-                          traceIO ("   Processing event #" ++ drop 5 (show (e ^. id)) ++ "...")
                           case maybeEventPage of
-                               Nothing -> update e -- Retrying failed events
-                               Just p -> return $ Parse.updateEvent e p
+                               Nothing -> do
+                                 traceIO ("   Failed to get page for event #" ++ drop 5 (show (e ^. id)) ++ ", retrying...")
+                                 update e -- Retrying failed events
+                               Just p -> do
+                                 traceIO ("   Processing event #" ++ drop 5 (show (e ^. id)) ++ "...")
+                                 return $ Parse.updateEvent e p
 
 --updateAllEventsConc :: [Event] -> IO [Event]
 --updateAllEventsConc events = do 
@@ -64,7 +67,6 @@ updateAllEvents = mapM update
 --             then return $ updatedList 
 --             else waitAndReturn sourceLength updated'
 
-
 getAllEvents :: String -> IO [Event]
 getAllEvents locale =
   getAllEvents' [] [1..] >>= updateAllEvents
@@ -73,9 +75,11 @@ getAllEvents locale =
         getAllEvents' evts (x:xs) = do
           page <- getPage locale x
           case page of
-            Just p -> trace ("Loaded page " ++ show x ++ "...")
-                            (getAllEvents' (evts ++ getEventsFromPage x p) xs)
-            Nothing -> return evts
+            Just p -> do
+              traceIO("Loading page " ++ show x ++ "...")
+              getAllEvents' (evts ++ getEventsFromPage x p) xs
+            Nothing -> do
+              return evts
 
         -- Parsing all pages
         getEventsFromPage pageNumber page = trace ("Found " ++ show (length events) ++ " events on page " ++ show pageNumber ++ ":") events
