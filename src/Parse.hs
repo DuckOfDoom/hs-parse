@@ -34,7 +34,7 @@ findEventsTable = takeWhile (~/= "</div>") . drop 2 . dropWhile (~/= "</div>") .
 
 splitEvents :: [Tag String] -> [[Tag String]]
 splitEvents = drop 1 . split ((keepDelimsL . whenElt) isStartTag) . filter isNotEmptyTagText
-  where isStartTag t = isTagOpenName "a" t && (fromAttrib "class" t == "meetups-event-table__row")
+  where isStartTag t = isTagOpenName "a" t && ("meetups-event-table__row" `isPrefixOf` fromAttrib "class" t  )
 
 parseEventTableEntry :: [Tag String] -> Maybe Event
 parseEventTableEntry tags | length tags < 3 = Nothing
