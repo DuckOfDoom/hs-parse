@@ -4,23 +4,17 @@
 module Main where
 
 import           Control.Lens             ((^.))
-import           System.Exit
 import           Prelude                  hiding (id)
-
+import           System.Exit              (exitFailure)
 import qualified Data.ByteString          as BS (ByteString, writeFile)
 import qualified Data.ByteString.Lazy     as LBS (toStrict)
 import           Debug.Trace              (trace, traceIO)
-
 import           Data.Aeson               (toJSON)
 import           Data.Aeson.Encode.Pretty
-
 import           Data.Csv                 (encode)
-
 import qualified Data.Text                as T
 import qualified Data.Text.Encoding       as E (encodeUtf8)
-
 import qualified Network                  as Net (maybeGetWith)
-
 import           Parse                    (parseEventsPage, updateEvent)
 import           Types
 
@@ -99,7 +93,9 @@ main = do
               "1" -> return (["RU"] :: [String])
               "2" -> return (["RU", "BY", "UA"] :: [String])
               "3" -> return (["ALL"] :: [String])
-              _ -> die "'1', '2' or '3' please."
+              _ -> do putStrLn $ "'1', '2' or '3' please."
+                      _ <- getLine
+                      exitFailure
 
         askFilename = do
           putStrLn "Choose filename for results (empty for 'resultsCSV.txt')"
