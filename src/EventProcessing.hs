@@ -9,7 +9,8 @@ import           Control.Lens ((^.))
 --import           Control.Concurrent (MVar, newMVar, modifyMVar_, readMVar, forkIO, threadDelay, setNumCapabilities)
 
 import           Debug.Trace  (trace, traceIO)
-import qualified Network      as Net (maybeGetWith)
+import           Network      (NetworkError(..))
+import qualified Network      as Net (eitherGetWith)
 import           Parse        (parseEventsPage, updateEvent)
 import           Prelude      hiding (id)
 import           Types
@@ -17,39 +18,39 @@ import           Types
 baseUrl :: String
 baseUrl = "http://eu.battle.net/hearthstone/ru/fireside-gatherings"
 
-getPage :: String -> Int -> IO (Maybe String)
-getPage region pageNumber = Net.maybeGetWith baseUrl opts
-  where opts = [ ("country", region)
-               , ("page", show pageNumber)
-               ]
-
 updateAllEvents :: [Event] -> IO [Event]
-updateAllEvents = mapM update
+updateAllEvents evts = mapM update evts
   where update e = case e ^. link of
-                        Nothing -> trace ("Event #" ++ show (e ^. id) ++ "has no link!")
-                                         (return e)
-                        Just eventLink -> do
-                          maybeEventPage <- Net.maybeGetWith eventLink []
-                          case maybeEventPage of
-                               Nothing -> do
-                                 traceIO ("   Failed to get page for event #" ++ drop 5 (show (e ^. id)) ++ ", retrying...")
-                                 update e -- Retrying failed events
-                               Just p -> do
-                                 traceIO ("   Processing event #" ++ drop 5 (show (e ^. id)) ++ "...")
-                                 return $ Parse.updateEvent e p
+                     Nothing -> trace ("Event #" ++ show (e ^. id) ++ "has no link!")
+                                      (return e)
+                     Just eventLink -> do
+                       maybeEventPage <- Net.eitherGetWith eventLink []
+                       case maybeEventPage of
+                            Left NotFound -> do
+                              traceIO ("   Did not find page for event " ++ evtId ++ " (Status 404) Link: " ++ evtLink)
+                              return e
+                            Left _ -> do
+                              traceIO ("   Failed to get page for event " ++ evtId ++ ", retrying...")
+                              update e 
+                            Right p -> do
+                              traceIO ("   Processing event " ++ evtId ++ "..." )
+                              return $ Parse.updateEvent e p
+                         where evtId = drop 5 (show (e ^. id))
+                               evtLink = drop 5 (show (e ^. link))
+                                    
 
 --updateAllEventsConc :: [Event] -> IO [Event]
---updateAllEventsConc events = do 
+--updateAllEventsConc events = do
 --  setNumCapabilities 4
 --  updatedMVar <- newMVar []
 --  mapM_ (update updatedMVar) events
 --  waitAndReturn (length events) updatedMVar
 --  where update :: MVar [Event] -> Event -> IO ()
 --        update updated' e = case e ^. link of
---                            Nothing -> do 
+--                            Nothing -> do
 --                              traceIO ("Event #" ++ show (e ^. id) ++ "has no link!")
 --                              modifyMVar_ updated' (\u -> return $ e : u)
---                            Just eventLink -> do 
+--                            Just eventLink -> do
 --                              traceIO ("   Processing event #" ++ drop 5 (show (e ^. id)) ++ "...")
 --                              _ <- forkIO $ do
 --                                maybeEventPage <- Net.maybeGetWith eventLink []
@@ -63,8 +64,8 @@ updateAllEvents = mapM update
 --        waitAndReturn sourceLength updated' = do
 --          updatedList <- readMVar updated'
 --          threadDelay 100000
---          if length updatedList == sourceLength 
---             then return $ updatedList 
+--          if length updatedList == sourceLength
+--             then return $ updatedList
 --             else waitAndReturn sourceLength updated'
 
 getAllEvents :: String -> IO [Event]
@@ -75,12 +76,22 @@ getAllEvents locale =
         getAllEvents' evts (x:xs) = do
           page <- getPage locale x
           case page of
-            Just p -> do
+            Left NotFound -> do
+              traceIO ("Events found : " ++ (show . length) evts)
+              return evts
+            Left _ -> do
+              traceIO ("Failed to get page " ++ show x ++ ", retrying...")
+              getAllEvents' evts (x:xs)
+            Right p -> do
               traceIO("Loading page " ++ show x ++ "...")
               getAllEvents' (evts ++ getEventsFromPage x p) xs
-            Nothing -> do
-              return evts
 
         -- Parsing all pages
-        getEventsFromPage pageNumber page = trace ("Found " ++ show (length events) ++ " events on page " ++ show pageNumber ++ ":") events
+        getEventsFromPage pageNumber page = trace ("Page #" ++ show pageNumber ++ " has " ++ show (length events) ++ " events") events
           where events = Parse.parseEventsPage page
+
+        getPage :: String -> Int -> IO (Either NetworkError String)
+        getPage region pageNumber = Net.eitherGetWith baseUrl opts
+          where opts = [ ("country", region)
+                       , ("page", show pageNumber)
+                       ]

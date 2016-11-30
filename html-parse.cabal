@@ -24,6 +24,7 @@ executable html-parse
                        split,
                        bytestring,
                        wreq, 
+                       http-client,
                        lens,
                        tagsoup
 
