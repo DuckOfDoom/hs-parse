@@ -69,7 +69,8 @@ updateAllEvents evts = mapM update evts
 --             else waitAndReturn sourceLength updated'
 
 getAllEvents :: String -> IO [Event]
-getAllEvents locale =
+getAllEvents locale = do
+  traceIO "Loading pages..."
   getAllEvents' [] [1..] >>= updateAllEvents
   where getAllEvents' evts [] = return evts
         -- Downloading pages until there are no more pages on site
@@ -77,18 +78,14 @@ getAllEvents locale =
           page <- getPage locale x
           case page of
             Left NotFound -> do
-              traceIO ("Events found : " ++ (show . length) evts)
+              traceIO ("Total pages: " ++  show x ++ "\n" ++ 
+                       "Total events: " ++ (show . length) evts)
               return evts
             Left _ -> do
               traceIO ("Failed to get page " ++ show x ++ ", retrying...")
               getAllEvents' evts (x:xs)
             Right p -> do
-              traceIO("Loading page " ++ show x ++ "...")
-              getAllEvents' (evts ++ getEventsFromPage x p) xs
-
-        -- Parsing all pages
-        getEventsFromPage pageNumber page = trace ("Page #" ++ show pageNumber ++ " has " ++ show (length events) ++ " events") events
-          where events = Parse.parseEventsPage page
+              getAllEvents' (evts ++ Parse.parseEventsPage p) xs
 
         getPage :: String -> Int -> IO (Either NetworkError String)
         getPage region pageNumber = Net.eitherGetWith baseUrl opts
