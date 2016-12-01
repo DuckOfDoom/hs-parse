@@ -19,24 +19,26 @@ baseUrl :: String
 baseUrl = "http://eu.battle.net/hearthstone/ru/fireside-gatherings"
 
 updateAllEvents :: [Event] -> IO [Event]
-updateAllEvents evts = mapM update evts
-  where update e = case e ^. link of
-                     Nothing -> trace ("Event #" ++ show (e ^. id) ++ "has no link!")
-                                      (return e)
-                     Just eventLink -> do
-                       maybeEventPage <- Net.eitherGetWith eventLink []
-                       case maybeEventPage of
-                            Left NotFound -> do
-                              traceIO ("   Did not find page for event " ++ evtId ++ " (Status 404) Link: " ++ evtLink)
-                              return e
-                            Left _ -> do
-                              traceIO ("   Failed to get page for event " ++ evtId ++ ", retrying...")
-                              update e 
-                            Right p -> do
-                              traceIO ("   Processing event " ++ evtId ++ "..." )
-                              return $ Parse.updateEvent e p
-                         where evtId = drop 5 (show (e ^. id))
-                               evtLink = drop 5 (show (e ^. link))
+updateAllEvents events = update 1 [] events
+  where update :: Int -> [Event] -> [Event] -> IO [Event]
+        update _ updated [] = return updated
+        update count updated (x:xs) = case x ^. link of
+                                        Nothing -> trace ("Event " ++ eventId ++ "has no link!")
+                                                         (update (count + 1) (x : updated) xs)
+                                        Just eventLink -> do
+                                          traceIO ("   Parsing page for event " ++ eventId ++ " " ++ countInfo)
+                                          maybeEventPage <- Net.eitherGetWith eventLink []
+                                          case maybeEventPage of
+                                               Left NotFound -> do
+                                                 traceIO ("   Did not find page for event " ++ eventId ++ " (Status 404) Link: " ++ eventLink)
+                                                 update (count + 1) (x : updated) xs
+                                               Left _ -> do
+                                                 traceIO ("   Failed to load event page, retrying...")
+                                                 update count updated (x:xs) 
+                                               Right page -> do
+                                                 update (count + 1) ((Parse.updateEvent x page) : updated) xs
+                                        where eventId = drop 5 (show (x ^. id))
+                                              countInfo = "(" ++ show count ++ "/" ++ (show . length) events  ++ ")"
                                     
 
 --updateAllEventsConc :: [Event] -> IO [Event]
@@ -81,11 +83,8 @@ getAllEvents locale = do
               traceIO ("Total pages: " ++  show x ++ "\n" ++ 
                        "Total events: " ++ (show . length) evts)
               return evts
-            Left _ -> do
-              traceIO ("Failed to get page " ++ show x ++ ", retrying...")
-              getAllEvents' evts (x:xs)
-            Right p -> do
-              getAllEvents' (evts ++ Parse.parseEventsPage p) xs
+            Left _ -> getAllEvents' evts (x:xs)
+            Right p -> getAllEvents' (evts ++ Parse.parseEventsPage p) xs
 
         getPage :: String -> Int -> IO (Either NetworkError String)
         getPage region pageNumber = Net.eitherGetWith baseUrl opts
