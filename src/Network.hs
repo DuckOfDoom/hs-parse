@@ -11,7 +11,6 @@ module Network
 
 import           Control.Exception    (SomeException, try)
 import           Control.Lens         ((&), (.~), (^.))
-import           Control.Monad        (liftM)
 import qualified Data.ByteString.Lazy as LBS (ByteString, toStrict)
 import           Data.String          (fromString)
 import qualified Data.Text            as T
