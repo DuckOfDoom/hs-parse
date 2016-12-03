@@ -36,7 +36,7 @@ maybeGetWith url optPairs = do
 
 eitherGetWith :: String -> [(T.Text, String)] -> IO (Either NetworkError String)
 eitherGetWith url optPairs = do
-  response <- try (responseToString <$> (Wreq.getWith opts url)) :: IO (Either HttpException String)
+  response <- try responseToString <$> Wreq.getWith opts url :: IO (Either HttpException String)
   case response of
        Left (StatusCodeException s _ _) -> if s ^. Wreq.statusCode == 404 
                                               then return $ Left NotFound
