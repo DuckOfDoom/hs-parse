@@ -51,25 +51,25 @@ parseEventTableEntry tags | length tags < 3 = Nothing
                                                  Nothing -> return (-1)
 
 updateEvent :: Event -> String -> Event
-updateEvent evt html = let tags = (dropWhile (~/= "<div class=\"meetup-header meetup-header--fsg-detail\">") $ parseTags html)
+updateEvent evt html = let tags = dropWhile (~/= "<div class=\"meetup-header meetup-header--fsg-detail\">") $ parseTags html
                            dateTime = liftM (fromAttrib "datetime") (find (isTagOpenName "time") tags)
                            oneMoreLink = find (\l -> not ("battle.net" `isInfixOf` l)) $ (map (fromAttrib "href") . filter (isTagOpenName "a")) tags
-                           mapTag = (find (~== "<div class=\"map-item\">") tags)
-                        in evt & date .~ (convertDate dateTime)
-                               & extraLink .~ (convertExtraLink oneMoreLink)
-                               & coords .~ (convertCoords mapTag)
+                           mapTag = find (~== "<div class=\"map-item\">") tags
+                        in evt & date .~ convertDate dateTime
+                               & extraLink .~ convertExtraLink oneMoreLink
+                               & coords .~ convertCoords mapTag
 
   where convertDate Nothing = Nothing
-        convertDate (Just str) | (length str < 10) = Nothing
+        convertDate (Just str) | length str < 10 = Nothing
                                | otherwise = Just $ day ++ "." ++ month ++ "." ++ year
                                where year = take 4 str
                                      month = (take 2 . drop 5) str
                                      day = (take 2 . drop 8) str
 
         convertExtraLink Nothing = Nothing
-        convertExtraLink (Just l) | ("https://maps.google.com" `isPrefixOf` l) = Nothing
+        convertExtraLink (Just l) | "https://maps.google.com" `isPrefixOf` l = Nothing
                              | otherwise = Just l
 
         convertCoords Nothing = Nothing
-        convertCoords (Just tag) = Just (Coords { _lat = read (fromAttrib "data-lat" tag) :: Double -- Потенциальное место для фейла :D
-                                                , _lng = read (fromAttrib "data-lng" tag) :: Double})
+        convertCoords (Just tag) = Just Coords { _lat = read (fromAttrib "data-lat" tag) :: Double -- Потенциальное место для фейла :D
+                                                , _lng = read (fromAttrib "data-lng" tag) :: Double}
