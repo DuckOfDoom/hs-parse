@@ -9,7 +9,7 @@ module Parse
 import           Control.Lens      ((&), (.~))
 import           Control.Monad     (liftM)
 import           Data.Char         (isAlphaNum, isDigit)
-import           Data.List         (find, isPrefixOf)
+import           Data.List         (find, isPrefixOf, isInfixOf)
 import           Data.List.Split   (keepDelimsL, split, whenElt)
 import           Data.Maybe        (mapMaybe)
 import           Prelude           hiding (id)
@@ -53,7 +53,7 @@ parseEventTableEntry tags | length tags < 3 = Nothing
 updateEvent :: Event -> String -> Event
 updateEvent evt html = let tags = (dropWhile (~/= "<div class=\"meetup-header meetup-header--fsg-detail\">") $ parseTags html)
                            dateTime = liftM (fromAttrib "datetime") (find (isTagOpenName "time") tags)
-                           oneMoreLink = liftM (fromAttrib "href") (find (isTagOpenName "a") tags)
+                           oneMoreLink = find (\l -> not ("battle.net" `isInfixOf` l)) $ (map (fromAttrib "href") . filter (isTagOpenName "a")) tags
                            mapTag = (find (~== "<div class=\"map-item\">") tags)
                         in evt & date .~ (convertDate dateTime)
                                & extraLink .~ (convertExtraLink oneMoreLink)
