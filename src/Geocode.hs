@@ -1,4 +1,3 @@
-{-# OPTIONS_GHC -Wall #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Geocode
@@ -15,7 +14,7 @@ geocodeAPIToken :: Maybe String
 geocodeAPIToken = Just ""
 
 positionToAddress :: (Double, Double) -> IO (Maybe String)
-positionToAddress coords = positionToAddress' geocodeAPIToken coords
+positionToAddress = positionToAddress' geocodeAPIToken 
   where positionToAddress' Nothing _ = return Nothing
         positionToAddress' (Just token) (lat, lng) = do
           json <- Net.maybeGetWith url opts
