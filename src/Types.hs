@@ -17,7 +17,7 @@ import           Prelude      hiding (id)
 data Coords = Coords { _lat :: Double
                      , _lng :: Double
                      }
-  deriving (Show, Generic)
+  deriving (Show, Eq, Generic)
 
 makeLenses ''Coords
 
