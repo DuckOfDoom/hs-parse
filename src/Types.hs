@@ -31,7 +31,7 @@ data Location = Location { _country :: Maybe String
                          , _state   :: Maybe String
                          , _city    :: Maybe String
                          }
-              deriving (Generic)
+              deriving (Eq, Generic)
 
 makeLenses ''Location
 
