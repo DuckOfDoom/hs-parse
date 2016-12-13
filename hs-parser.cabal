@@ -25,12 +25,12 @@ library
                        split >= 0.2,
                        bytestring >= 0.10,
                        aeson >= 0.11,
-                       aeson-pretty >= 0.8,
+                       aeson-pretty >= 0.7.2,
                        cassava >= 0.4,
                        wreq >= 0.4, 
                        http-client >= 0.4,
-                       lens >= 4.14,
-                       tagsoup >= 0.14
+                       lens >= 4.13,
+                       tagsoup >= 0.13.10
   ghc-options:         -Wall
 
 executable hs-parser-exe

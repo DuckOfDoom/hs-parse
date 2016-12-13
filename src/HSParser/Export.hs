@@ -25,9 +25,8 @@ getEventsAsJSONPretty regions = do
   events <- getRawEvents regions
   return $ LBS.toStrict $ encodePretty' conf (toJSON events)
       where sorting = keyOrder ["id", "link", "name", "location", "date"]
-            conf = Config { confIndent = Spaces 4
+            conf = Config { confIndent = 4
                           , confCompare = sorting
-                          , confNumFormat = Generic
                           }
 
 getEventsAsJSON :: [String] -> IO ByteString
