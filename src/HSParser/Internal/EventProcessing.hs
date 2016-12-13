@@ -81,7 +81,9 @@ getAllEvents locale = do
               traceIO ("Total pages: " ++  show x ++ "\n" ++
                        "Total events: " ++ (show . length) evts)
               return evts
-            Left _ -> getAllEvents' evts (x:xs)
+            Left _ -> do 
+              traceIO ("Retrying page " ++ show x ++ "...")
+              getAllEvents' evts (x:xs)
             Right p -> getAllEvents' (evts ++ parseEventsPage p) xs
 
         getPage :: String -> Int -> IO (Either NetworkError String)

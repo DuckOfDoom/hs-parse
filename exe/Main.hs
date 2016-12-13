@@ -2,39 +2,17 @@
 
 module Main where
 
-import           Data.Aeson               (toJSON)
-import           Data.Aeson.Encode.Pretty
-import qualified Data.ByteString          as BS (writeFile)
-import qualified Data.ByteString.Lazy     as LBS (toStrict)
-import           Data.Csv                 (encode)
-import           Debug.Trace              (traceIO)
-import           HSParser.Internal.EventProcessing (getAllEvents)
-import           HSParser.Types           (Event)
-import           System.Exit              (exitFailure)
-
-
-eventsToCSV :: [Event] -> String -> IO ()
-eventsToCSV events filename = do
-  traceIO $ "Writing CSV to '" ++ filename ++ "'..."
-  BS.writeFile filename (LBS.toStrict $ encode events)
-
-eventsToJSON :: [Event] -> String -> IO ()
-eventsToJSON events filename = do
-  traceIO $ "Writing JSON to '" ++ filename ++ "'..."
-  BS.writeFile filename (LBS.toStrict $ encodePretty' conf (toJSON events))
-      where sorting = keyOrder ["id", "link", "name", "location", "date"]
-            conf = Config { confIndent = Spaces 4
-                          , confCompare = sorting
-                          , confNumFormat = Generic
-                          }
+import qualified Data.ByteString                   as BS (writeFile)
+import           HSParser.Export                   (getEventsAsCSV)
+import           System.Exit                       (exitFailure)
 
 main :: IO ()
 main = do
   regions <- askRegion
-  fileName <- askFilename
-  events <- foldMap getAllEvents regions
-  eventsToCSV events fileName
-  putStrLn $ "Done! Processed " ++ show (length events) ++ " events!"
+  filename <- askFilename
+  csv <- getEventsAsCSV regions
+  BS.writeFile filename csv
+  putStrLn $ "Done! Written results to " ++ filename ++ "!"
   _ <- getLine
   return ()
 
