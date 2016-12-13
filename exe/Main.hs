@@ -8,9 +8,9 @@ import qualified Data.ByteString          as BS (writeFile)
 import qualified Data.ByteString.Lazy     as LBS (toStrict)
 import           Data.Csv                 (encode)
 import           Debug.Trace              (traceIO)
-import           EventProcessing          (getAllEvents)
+import           HSParser.Internal.EventProcessing (getAllEvents)
+import           HSParser.Types           (Event)
 import           System.Exit              (exitFailure)
-import           Types                    (Event)
 
 
 eventsToCSV :: [Event] -> String -> IO ()
@@ -32,7 +32,7 @@ main :: IO ()
 main = do
   regions <- askRegion
   fileName <- askFilename
-  events <- foldMap EventProcessing.getAllEvents regions
+  events <- foldMap getAllEvents regions
   eventsToCSV events fileName
   putStrLn $ "Done! Processed " ++ show (length events) ++ " events!"
   _ <- getLine
@@ -48,7 +48,7 @@ main = do
               "1" -> return (["RU"] :: [String])
               "2" -> return (["RU", "BY", "UA"] :: [String])
               "3" -> return (["ALL"] :: [String])
-              _ -> do putStrLn $ "'1', '2' or '3' please."
+              _ -> do putStrLn "'1', '2' or '3' please."
                       _ <- getLine
                       exitFailure
 

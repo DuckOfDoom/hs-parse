@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Geocode
+module HSParser.Internal.Geocode
   ( positionToAddress
   )
   where

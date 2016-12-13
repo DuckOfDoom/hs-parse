@@ -1,8 +1,8 @@
-import           Control.Lens ((^.))
-import qualified Parse        (parseEventsPage, updateEvent)
-import           Prelude      hiding (id)
-import           Test.HUnit   hiding (Location)
-import           Types
+import           Control.Lens              ((^.))
+import           HSParser.Internal.Parsing (parseEventsPage, updateEvent)
+import           HSParser.Types
+import           Prelude                   hiding (id)
+import           Test.HUnit                hiding (Location)
 
 main :: IO Counts
 main = runTestTT parsingTests
@@ -12,7 +12,7 @@ parsingTests = TestList [ testTableParsing, testEventUpdate ]
 testTableParsing :: Test
 testTableParsing = TestCase $ do
   testHtml <- readFile "test/html/table.html"
-  let evts = Parse.parseEventsPage testHtml
+  let evts = parseEventsPage testHtml
       evt = evts !! 6
       in do
          assertEqual "Found all events" 15 (length evts)
@@ -28,7 +28,7 @@ testTableParsing = TestCase $ do
 testEventUpdate :: Test
 testEventUpdate = TestCase $ do
   testHtml <- readFile "test/html/event.html"
-  let evt = Parse.updateEvent defaultEvent testHtml
+  let evt = updateEvent defaultEvent testHtml
       in do
           assertEqual "DateTime is updated" (Just "10.12.2016") (evt ^. date)
           assertEqual "Extra link is updated" (Just "https://vk.com/typical.hscafe") (evt ^. extraLink)

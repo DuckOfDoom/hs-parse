@@ -1,4 +1,4 @@
-module Parse
+module HSParser.Internal.Parsing
   ( parseEventsPage
   , updateEvent
   )
@@ -7,15 +7,15 @@ module Parse
 import           Control.Lens      ((&), (.~))
 import           Control.Monad     (liftM)
 import           Data.Char         (isAlphaNum, isDigit)
-import           Data.List         (find, isPrefixOf, isInfixOf)
+import           Data.List         (find, isInfixOf, isPrefixOf)
 import           Data.List.Split   (keepDelimsL, split, whenElt)
 import           Data.Maybe        (mapMaybe)
+import           HSParser.Types
 import           Prelude           hiding (id)
 import           Text.HTML.TagSoup (Tag, fromAttrib, fromTagText, isTagOpenName,
                                     isTagText, maybeTagText, parseTags, (~/=),
                                     (~==))
 import           Text.Read         (readMaybe)
-import           Types
 
 parseEventsPage :: String -> [Event]
 parseEventsPage html = mapMaybe parseEventTableEntry $ (splitEvents . findEventsTable) $ parseTags html

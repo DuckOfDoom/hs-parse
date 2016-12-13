@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Network
+module HSParser.Internal.Network
   ( NetworkError(..)
   , eitherGetWith
   , maybeGetWith
@@ -15,8 +15,8 @@ import           Data.String          (fromString)
 import qualified Data.Text            as T
 import qualified Data.Text.Encoding   as E (decodeUtf8)
 import           Network.HTTP.Client  (HttpException (..))
-import qualified Network.Wreq         as Wreq (Response, defaults, getWith, statusCode,
-                                               param, responseBody)
+import qualified Network.Wreq         as Wreq (Response, defaults, getWith,
+                                               param, responseBody, statusCode)
 
 data NetworkError = NotFound | OtherError
                   deriving (Show)
@@ -37,7 +37,7 @@ eitherGetWith :: String -> [(T.Text, String)] -> IO (Either NetworkError String)
 eitherGetWith url optPairs = do
   response <- try $ responseToString <$> Wreq.getWith opts url :: IO (Either HttpException String)
   case response of
-       Left (StatusCodeException s _ _) -> if s ^. Wreq.statusCode == 404 
+       Left (StatusCodeException s _ _) -> if s ^. Wreq.statusCode == 404
                                               then return $ Left NotFound
                                               else return $ Left OtherError
        Left _ -> return $ Left OtherError

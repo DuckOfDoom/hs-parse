@@ -1,18 +1,18 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module EventProcessing
+module HSParser.Internal.EventProcessing
   ( getAllEvents )
   where
 
-import           Control.Lens ((^.))
+import           Control.Lens             ((^.))
 --import           Control.Concurrent (MVar, newMVar, modifyMVar_, readMVar, forkIO, threadDelay, setNumCapabilities)
 
-import           Debug.Trace  (trace, traceIO)
-import           Network      (NetworkError(..))
-import qualified Network      as Net (eitherGetWith)
-import           Parse        (parseEventsPage, updateEvent)
-import           Prelude      hiding (id)
-import           Types
+import           Debug.Trace              (trace, traceIO)
+import           HSParser.Internal.Network (NetworkError (..))
+import qualified HSParser.Internal.Network as Net (eitherGetWith)
+import           HSParser.Internal.Parsing (parseEventsPage, updateEvent)
+import           HSParser.Types
+import           Prelude                  hiding (id)
 
 baseUrl :: String
 baseUrl = "http://eu.battle.net/hearthstone/ru/fireside-gatherings"
@@ -32,13 +32,12 @@ updateAllEvents events = update 1 [] events
                                                  traceIO ("   Did not find page for event " ++ eventId ++ " (Status 404) Link: " ++ eventLink)
                                                  update (count + 1) (x : updated) xs
                                                Left _ -> do
-                                                 traceIO ("   Failed to load event page, retrying...")
-                                                 update count updated (x:xs) 
-                                               Right page -> do
-                                                 update (count + 1) ((Parse.updateEvent x page) : updated) xs
+                                                 traceIO "   Failed to load event page, retrying..."
+                                                 update count updated (x:xs)
+                                               Right page -> update (count + 1) (updateEvent x page : updated) xs
                                         where eventId = drop 5 (show (x ^. id))
                                               countInfo = "(" ++ show count ++ "/" ++ (show . length) events  ++ ")"
-                                    
+
 
 --updateAllEventsConc :: [Event] -> IO [Event]
 --updateAllEventsConc events = do
@@ -79,11 +78,11 @@ getAllEvents locale = do
           page <- getPage locale x
           case page of
             Left NotFound -> do
-              traceIO ("Total pages: " ++  show x ++ "\n" ++ 
+              traceIO ("Total pages: " ++  show x ++ "\n" ++
                        "Total events: " ++ (show . length) evts)
               return evts
             Left _ -> getAllEvents' evts (x:xs)
-            Right p -> getAllEvents' (evts ++ Parse.parseEventsPage p) xs
+            Right p -> getAllEvents' (evts ++ parseEventsPage p) xs
 
         getPage :: String -> Int -> IO (Either NetworkError String)
         getPage region pageNumber = Net.eitherGetWith baseUrl opts

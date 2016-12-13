@@ -3,7 +3,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell   #-}
 
-module Types where
+module HSParser.Types where
 
 import           Control.Lens (makeLenses, (^.))
 import           Data.Aeson   (FromJSON, ToJSON, object, toJSON, (.=))
